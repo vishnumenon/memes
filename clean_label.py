@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 import json
+import io
 import spacy
 import textacy
 import cld2
@@ -9,16 +10,10 @@ from sklearn.neighbors import BallTree
 from numpy import array, ndarray
 import pickle
 import os.path
+import sys
 
 def generate_meme_title_corpus():
     global names_cv, names_tfidf_transformer, clf, target_names
-
-    # if os.path.isfile('meme_clf.p'):
-    #     target_names = pickle.load(open("meme_target_names.p", "rb"));
-    #     names_cv = pickle.load(open("meme_name_cv.p", "rb"));
-    #     names_tfidf_transformer = pickle.load(open("meme_name_tfidf_trans.p", "rb"));
-    #     clf = pickle.load(open("meme_clf.p", "rb"));
-    #     return
 
     target_names = []
     for line in open("memes.json"):
@@ -34,10 +29,6 @@ def generate_meme_title_corpus():
 
     clf = BallTree(training_data_tfidf.toarray(), leaf_size=100)
 
-    # pickle.dump(target_names, open("meme_target_names.p", "wb"));
-    # pickle.dump(names_cv, open("meme_name_cv.p", "wb"));
-    # pickle.dump(names_tfidf_transformer, open("meme_name_tfidf_trans.p", "wb"));
-    # pickle.dump(clf, open("meme_clf.p", "wb"));
 
 def get_nearest_meme_title(text):
     new_input = names_cv.transform([text])
@@ -50,14 +41,23 @@ def process_comment(comment):
     text = textacy.preprocess.preprocess_text(comment["body"], no_punct=True, fix_unicode=True, lowercase=True, no_urls=True, no_emails=True)
     isReliable, textBytesFound, details = cld2.detect(text.encode("utf8"))
     lang = details[0][1]
-    if isReliable and lang != "en": return
+    if isReliable and lang != "en": return None
     meme = get_nearest_meme_title(text)
+    comment["body"] = text
+    comment["length"] = len(text)
+    comment["wordCount"] = len(text.split())
+    comment["isMeme"] = False
     if meme is not None:
-        print(meme + ": " + text + "\n")
+        comment["isMeme"] = True
+        comment["memeGuess"] = meme
+    return comment
+
 
 
 generate_meme_title_corpus()
 
-rr = textacy.corpora.reddit_reader.RedditReader('RC_2009-01.bz2')
-for comment in rr.records(limit=100000):
-    process_comment(comment)
+rr = textacy.corpora.reddit_reader.RedditReader(sys.argv[1])
+with io.open(sys.argv[2], 'w', encoding='utf-8') as output:
+    for comment in rr.records(limit=100):
+        processed = process_comment(comment)
+        if processed is not None: output.write(json.dumps(processed, ensure_ascii=False)+"\n")

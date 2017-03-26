@@ -10,7 +10,11 @@ from sklearn.neighbors import BallTree
 from numpy import array, ndarray
 import pickle
 import os.path
+import random
 import sys
+from textstat.textstat import textstat
+
+meme_lexicon = set()
 
 def generate_meme_title_corpus():
     global names_cv, names_tfidf_transformer, clf, target_names
@@ -19,8 +23,9 @@ def generate_meme_title_corpus():
     for line in open("memes.json"):
         meme = json.loads(line)["meme"]
         title = textacy.preprocess.preprocess_text(meme, no_punct=True, fix_unicode=True, lowercase=True, no_urls=True, no_emails=True)
-        if title not in ["url", "*url*"]:
+        if title not in ["url", "*url*", "*email*", "email"]:
             target_names.append(title)
+            meme_lexicon.update(title.split())
     names_cv = CountVectorizer()
     names_tfidf_transformer = TfidfTransformer()
 
@@ -46,18 +51,26 @@ def process_comment(comment):
     comment["body"] = text
     comment["length"] = len(text)
     comment["wordCount"] = len(text.split())
+    if(comment["wordCount"] > 1):
+        comment["flesch"] = textstat.flesch_reading_ease(text)
+    comment["lexiconSize"] = textstat.lexicon_count(text, True)
+    if meme is None and comment["wordCount"] > 20 and comment["flesch"] < 60 : return None
     comment["isMeme"] = False
     if meme is not None:
         comment["isMeme"] = True
         comment["memeGuess"] = meme
     return comment
 
-
-
 generate_meme_title_corpus()
 
-rr = textacy.corpora.reddit_reader.RedditReader(sys.argv[1])
-with io.open(sys.argv[2], 'w', encoding='utf-8') as output:
-    for comment in rr.records(limit=100):
-        processed = process_comment(comment)
-        if processed is not None: output.write(json.dumps(processed, ensure_ascii=False)+"\n")
+
+files = sys.argv[1].split(",")
+for f in files:
+    rr = open(f)
+    with io.open(sys.argv[2], 'w', encoding='utf-8') as output:
+        for line in rr:
+            comment = json.loads(line)
+            comment = {k: comment[k] for k in ['body', 'score', 'gilded', 'controversiality', 'subreddit', 'created_utc']}
+            processed = process_comment(comment)
+            if processed is not None: output.write(json.dumps(processed, ensure_ascii=False)+"\n")
+    rr.close()

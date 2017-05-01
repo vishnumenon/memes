@@ -1,6 +1,11 @@
+#The following R code has several functions that are documented before
+#it's corresponding code. The functions all utilize data from the given
+#meme file, which is read in during the first line of the code. The script
+#is structured such that all the function calls are at the end of the code.
+
 #Read in Meme file
 meme <- read.csv(file="obama.csv",header=TRUE, sep =",");
- 
+
 #Convert given UTC to years
 original_data_years <- meme$created_utc <- ((meme$created_utc/(60*60*24*365.25)+1970));
 
@@ -12,14 +17,14 @@ truncate_years <- function(creation_date, truncate_amount){
   }
   return (creation_date);
 }
-  
+
 #Function to Truncate Years into Months
 years_to_months <- function(creation_date){
  for(i in 1:length(creation_date)){
    year = creation_date[i];
    year_decimal = round(year,2)-floor(year);
    creation_date[i] = floor(year) + (8*floor(year_decimal*12)/100);
- } 
+ }
  return(creation_date);
 }
 
@@ -47,7 +52,7 @@ ten_most_common <- function(original_data_years){
 ten_most_common_years <- function(original_data_years){
   meme$created_utc <- truncate_years(original_data_years, 0);
   for(i in 1:length(table(meme$created_utc))){
-    subreddit_info_years <- sort(table(meme[meme$created_utc==2007+i, ]$subreddit), 
+    subreddit_info_years <- sort(table(meme[meme$created_utc==2007+i, ]$subreddit),
                                  decreasing=TRUE)[1:10];
     slices<- as.vector(subreddit_info_years);
     labels <- names(subreddit_info_years);
@@ -58,9 +63,9 @@ ten_most_common_years <- function(original_data_years){
 #Function to create a Pie Chart of Ten Most Common Subreddits - any given year
 most_common_in_year <- function(original_data_years, year){
   meme$created_utc <- truncate_years(original_data_years, 0);
-  subreddit_info_years <- sort(table(meme[meme$created_utc==year, ]$subreddit), 
+  subreddit_info_years <- sort(table(meme[meme$created_utc==year, ]$subreddit),
                                  decreasing=TRUE)[1:10];
-  slices<- as.vector(subreddit_info_years);   
+  slices<- as.vector(subreddit_info_years);
   labels <- names(subreddit_info_years);
   pie(slices, labels, main= paste("Switcharoo in", toString(year), sep=" "));
 }
@@ -97,7 +102,7 @@ track_mean_polarity_precision <- function(original_data_years, absolute_value){
   neg_absolute_value <- (-1*absolute_value);
   for(i in 1:length(x_values)){
     y_values[i] = mean(meme[which(meme$created_utc == x_values[i]
-                                  & meme$polarity >= absolute_value 
+                                  & meme$polarity >= absolute_value
                                    ), ]$polarity);
   }
   plot(x_values, y_values, type = "l", main = "Mean Polarity of Ratings Memes with |0.5| <= polarity",
@@ -113,7 +118,7 @@ track_median_score <- function(original_data_years){
   for(i in 1:length(x_values)){
     y_values[i] = median(meme[which(meme$created_utc == x_values[i]), ]$score);
   }
-  plot(x_values, y_values, type = "l", xlab="Year", 
+  plot(x_values, y_values, type = "l", xlab="Year",
        ylab="Score", main = "Median Score of Switcharoo Memes", col = "blue");
 }
 
@@ -127,14 +132,14 @@ track_median_score_precision <- function(original_data_years, greaterThan){
                                       meme$score >= greaterThan), ]$score);
   }
   plot(x_values, y_values, type = "l", xlab="Year", ylab = "Score",
-       main=paste("Median Score of Switcharoo Memes that are at least", toString(greaterThan), 
+       main=paste("Median Score of Switcharoo Memes that are at least", toString(greaterThan),
                   sep = " "), col = "blue");
 }
 
 
 #Function to Track Correlation in Score
 score_vs_comment <- function(original_data_years, last_months){
-  meme$created_utc <- years_to_months(original_data_years);  
+  meme$created_utc <- years_to_months(original_data_years);
   comments_and_months <- table(meme$created_utc);
   comments <- as.vector(comments_and_months);
   months <- names(comments_and_months);
@@ -146,18 +151,18 @@ score_vs_comment <- function(original_data_years, last_months){
   for(i in 1:length(months)){
     scores[i] = mean(meme[which(meme$created_utc == months[i]), ]$score);
   }
-  plot(months, comments/50, 
+  plot(months, comments/50,
        main = paste("Switcharoo Comments and Mean Score in last", toString(last_months), "months", sep = " "),
        xlab = "Year", ylab = "Volume", type = "l", col = "red");
   lines(months, scores, type = "l", col = "blue");
-  
+
   months;
   print(cor(scores, comments/200));
 }
 
 #Function to Track Correlation of Polarity
 score_vs_polarity <- function(original_data_years, last_months){
-  meme$created_utc <- years_to_months(original_data_years);  
+  meme$created_utc <- years_to_months(original_data_years);
   comments_and_months <- table(meme$created_utc);
   comments <- as.vector(comments_and_months);
   months <- names(comments_and_months);
@@ -169,11 +174,11 @@ score_vs_polarity <- function(original_data_years, last_months){
   for(i in 1:length(months)){
     scores[i] = mean(meme[which(meme$created_utc == months[i]), ]$score);
   }
-  plot(months, comments/50, 
+  plot(months, comments/50,
        main = paste("Switcharoo Comments and Mean Score in last", toString(last_months), "months", sep = " "),
        xlab = "Year", ylab = "Volume", type = "l", col = "red");
   lines(months, scores, type = "l", col = "blue");
-  
+
   months;
   print(cor(scores, comments/200));
 }
@@ -190,4 +195,3 @@ track_mean_polarity_precision(original_data_years, 0.3);
 track_median_score(original_data_years);
 track_median_score_precision(original_data_years, 5);
 score_vs_comment(original_data_years, 36)
-
